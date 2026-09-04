@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #071018;
+  --bg-elevated: #0d1a24;
+  --bg-panel: rgba(13, 32, 42, 0.88);
+  --fg: #e8eef2;
+  --fg-muted: #8fa3b0;
+  --ink: #0b1f2a;
+  --ledger: #1fa97a;
+  --ledger-dim: rgba(31, 169, 122, 0.16);
+  --amber: #d4a017;
+  --amber-dim: rgba(212, 160, 23, 0.16);
+  --line: rgba(143, 163, 176, 0.22);
+  --danger: #e85d5d;
+  --ok: #1fa97a;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--fg);
+  font-family: var(--font-body), system-ui, sans-serif;
+  background:
+    radial-gradient(900px 500px at 0% -10%, rgba(31, 169, 122, 0.14), transparent 55%),
+    radial-gradient(700px 420px at 100% 0%, rgba(212, 160, 23, 0.08), transparent 50%),
+    linear-gradient(165deg, var(--bg) 0%, #0a1520 50%, #050c12 100%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(31, 169, 122, 0.35);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

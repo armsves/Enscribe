@@ -1,0 +1,39 @@
+{
+  "name": "enscribe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:payment": "tsx scripts/test-payment.ts",
+    "test:payment:dry": "tsx scripts/test-payment.ts --dry",
+    "register:parent": "tsx scripts/register-parent-ens.ts",
+    "test:swarm": "tsx scripts/test-swarm-upload.ts",
+    "test:swarm:dry": "tsx scripts/test-swarm-upload.ts --dry"
+  },
+  "dependencies": {
+    "@ethersphere/bee-js": "^13.0.0",
+    "@wallet-standard/app": "^1.1.1",
+    "@wallet-standard/base": "^1.1.1",
+    "next": "16.3.3",
+    "pdf-lib": "^1.17.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "viem": "^2.55.19"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
+  },
+  "description": "ENS-named freelancer invoices with confidential Solana settlement and tax CSV export"
+}
