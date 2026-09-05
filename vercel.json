@@ -1,0 +1,14 @@
+{
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/invoice/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/status/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/user/data/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
