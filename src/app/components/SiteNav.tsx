@@ -2,41 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  clearSession,
-  loadSession,
-  loginWithMetaMask,
-  restoreSessionIfConnected,
-  type WalletSession,
-} from "@/lib/session";
+import { useEnscribeAuth } from "@/app/providers";
 import { shorten } from "@/lib/wallets";
 
 export function SiteNav() {
-  const [session, setSession] = useState<WalletSession | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    void (async () => {
-      setSession((await restoreSessionIfConnected()) ?? loadSession());
-    })();
-  }, []);
-
-  const connect = async () => {
-    setBusy(true);
-    try {
-      setSession(await loginWithMetaMask());
-    } catch {
-      // stay logged out
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const logout = () => {
-    clearSession();
-    setSession(null);
-  };
+  const { ready, session, login, logout } = useEnscribeAuth();
 
   return (
     <nav className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
@@ -70,7 +40,7 @@ export function SiteNav() {
             </Link>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void logout()}
               className="border border-[var(--line)] px-3 py-1.5 font-[family-name:var(--font-mono)] text-xs hover:border-[var(--ledger)]"
               title={session.address}
             >
@@ -80,11 +50,11 @@ export function SiteNav() {
         ) : (
           <button
             type="button"
-            disabled={busy}
-            onClick={() => void connect()}
+            disabled={!ready}
+            onClick={() => void login()}
             className="rounded-lg bg-[var(--ledger)] px-3 py-1.5 font-semibold text-[var(--ink)] disabled:opacity-50"
           >
-            {busy ? "…" : "Log in"}
+            {!ready ? "…" : "Log in"}
           </button>
         )}
       </div>

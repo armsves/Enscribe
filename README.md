@@ -6,11 +6,11 @@
 
 | Area | What it does |
 | --- | --- |
-| `/` | MetaMask login → dashboard (create invoice + workspace links) |
+| `/` | Privy login (email / Google / wallet) → dashboard |
 | `/invoices/new` | Create invoice → Intents quote → mint ENS → PDF + Swarm |
 | `/invoices` | Workspace list + payment status refresh |
 | `/pay/[ens]` | Client pay page (app resolves Sepolia ENS; MetaMask pays USDC) |
-| `/profile` | Freelancer MetaMask + Phantom wallet registration |
+| `/profile` | Freelancer wallets + Swarm sync |
 | `/accounting` | Monthly ledger + CSV export |
 
 Solana settlement addresses are **never** written to ENS.
@@ -22,6 +22,7 @@ Copy `.env.example` → `.env.local`:
 | Var | Required | Notes |
 | --- | --- | --- |
 | `INTENTS_API_KEY` | yes | [studio.aurora.dev](https://studio.aurora.dev/) |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | for login | [dashboard.privy.io](https://dashboard.privy.io) — allow your domains |
 | `ENS_CONTROLLER_PRIVATE_KEY` | yes | Owner of parent ENS |
 | `ENS_PARENT_NAME` | yes | default `commons3nse.eth` |
 | `ENS_CHAIN` | yes | `sepolia` |

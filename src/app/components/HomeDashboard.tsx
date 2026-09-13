@@ -3,13 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  clearSession,
-  loadSession,
-  loginWithMetaMask,
-  restoreSessionIfConnected,
-  type WalletSession,
-} from "@/lib/session";
+import { useEnscribeAuth } from "@/app/providers";
 import {
   loadInvoices,
   loadProfile,
@@ -45,8 +39,13 @@ const DASHBOARD_LINKS = [
 ] as const;
 
 export function HomeDashboard() {
-  const [session, setSession] = useState<WalletSession | null>(null);
-  const [ready, setReady] = useState(false);
+  const {
+    ready: authReady,
+    session,
+    configured: privyConfigured,
+    login,
+    logout,
+  } = useEnscribeAuth();
   const [error, setError] = useState<string | null>(null);
   const [setupMsg, setSetupMsg] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -68,10 +67,8 @@ export function HomeDashboard() {
   }, []);
 
   useEffect(() => {
+    refreshLocal();
     void (async () => {
-      const restored = await restoreSessionIfConnected();
-      setSession(restored ?? loadSession());
-      refreshLocal();
       try {
         const res = await fetch("/api/config");
         const cfg = (await res.json()) as { appUrl?: string };
@@ -81,9 +78,14 @@ export function HomeDashboard() {
       } catch {
         setAppOrigin(window.location.origin);
       }
-      setReady(true);
     })();
   }, [refreshLocal]);
+
+  useEffect(() => {
+    if (session?.address) refreshLocal();
+  }, [session?.address, refreshLocal]);
+
+  const ready = authReady;
 
   const stats = useMemo(
     () => ({
@@ -102,19 +104,17 @@ export function HomeDashboard() {
     setConnecting(true);
     setError(null);
     try {
-      const next = await loginWithMetaMask();
-      setSession(next);
+      await login();
       refreshLocal();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Wallet connect failed");
+      setError(e instanceof Error ? e.message : "Login failed");
     } finally {
       setConnecting(false);
     }
   };
 
-  const logout = () => {
-    clearSession();
-    setSession(null);
+  const onLogout = () => {
+    void logout();
   };
 
   const persistProfile = (next: FreelancerProfile) => {
@@ -236,20 +236,29 @@ export function HomeDashboard() {
             Enscribe
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--fg-muted)]">
-            Freelancers log in with MetaMask, set a Solana receiving wallet
-            (Phantom or MetaMask Solana), then share pay links. Clients pay with
-            MetaMask only.
+            Freelancers log in with Privy (email, Google, or wallet), set a
+            Solana receiving wallet (Phantom or MetaMask Solana), then share pay
+            links. Clients pay with MetaMask only.
           </p>
           <div className="mt-8">
             <button
               type="button"
-              disabled={connecting}
+              disabled={connecting || !ready}
               onClick={() => void connect()}
               className="rounded-xl bg-[var(--ledger)] px-5 py-3 font-semibold text-[var(--ink)] transition hover:brightness-110 disabled:opacity-50"
             >
-              {connecting ? "Connecting…" : "Log in with MetaMask"}
+              {connecting
+                ? "Opening Privy…"
+                : privyConfigured
+                  ? "Log in with Privy"
+                  : "Log in with MetaMask"}
             </button>
           </div>
+          {!privyConfigured && (
+            <p className="mt-3 text-xs text-[var(--amber)]">
+              Set NEXT_PUBLIC_PRIVY_APP_ID to enable Privy email / social login.
+            </p>
+          )}
           {error && (
             <p className="mt-4 text-sm text-[var(--danger)]">{error}</p>
           )}
@@ -270,12 +279,13 @@ export function HomeDashboard() {
               {profile.displayName ? `Hi, ${profile.displayName}` : "Your workspace"}
             </h1>
             <p className="mt-2 font-[family-name:var(--font-mono)] text-sm text-[var(--fg-muted)]">
-              Login · {shorten(session.address, 6)} (MetaMask)
+              Login · {shorten(session.address, 6)}
+              {privyConfigured ? " (Privy)" : " (MetaMask)"}
             </p>
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={onLogout}
             className="border border-[var(--line)] px-3 py-2 text-sm hover:border-[var(--ledger)]"
           >
             Log out

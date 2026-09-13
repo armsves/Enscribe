@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Syne, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const display = Syne({
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${display.variable} ${body.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { getAddress, type Hex } from "viem";
+import { readApiJson } from "@/lib/api-json";
 import {
   loadInvoices,
   loadProfile,
@@ -13,6 +14,15 @@ import { connectMetaMask, getEthereum } from "@/lib/wallets";
 
 const AUTH_PREFIX = "Enscribe user store";
 
+type MessageSigner = (message: string, address: string) => Promise<Hex>;
+
+let messageSigner: MessageSigner | null = null;
+
+/** Wired by PrivyProviders so email/social embedded wallets can sign Swarm auth. */
+export function setSwarmMessageSigner(signer: MessageSigner | null) {
+  messageSigner = signer;
+}
+
 export function buildUserAuthMessage(address: string, timestamp: number): string {
   return `${AUTH_PREFIX}\nAddress: ${getAddress(address)}\nTimestamp: ${timestamp}`;
 }
@@ -22,13 +32,24 @@ export async function signUserAuth(address?: string): Promise<{
   timestamp: number;
   signature: Hex;
 }> {
-  const eth = getEthereum();
-  if (!eth) throw new Error("MetaMask is required to sync with Swarm");
-
-  const wallet = address?.trim() || (await connectMetaMask());
+  const wallet =
+    address?.trim() ||
+    loadProfile().defaultRefundTo ||
+    (await connectMetaMask());
   const normalized = getAddress(wallet);
   const timestamp = Date.now();
   const message = buildUserAuthMessage(normalized, timestamp);
+
+  if (messageSigner) {
+    const signature = await messageSigner(message, normalized);
+    return { address: normalized, timestamp, signature };
+  }
+
+  const eth = getEthereum();
+  if (!eth) {
+    throw new Error("Log in with Privy (or MetaMask) to sync with Swarm");
+  }
+
   const signature = (await eth.request({
     method: "personal_sign",
     params: [message, normalized],
@@ -50,13 +71,13 @@ export async function pullUserStoreFromSwarm(): Promise<{
     signature: auth.signature,
   });
   const res = await fetch(`/api/user/data?${qs}`);
-  const data = (await res.json()) as {
+  const data = await readApiJson<{
     error?: string;
     found?: boolean;
     updatedAt?: string | null;
     profile?: FreelancerProfile | null;
     invoices?: LocalInvoice[];
-  };
+  }>(res);
   if (!res.ok) throw new Error(data.error ?? "Failed to load Swarm user store");
 
   if (data.profile) saveProfile(data.profile);
@@ -92,7 +113,7 @@ export async function pushUserStoreToSwarm(input?: {
       invoices,
     }),
   });
-  const data = (await res.json()) as { error?: string; updatedAt?: string };
+  const data = await readApiJson<{ error?: string; updatedAt?: string }>(res);
   if (!res.ok) throw new Error(data.error ?? "Failed to save Swarm user store");
   return { updatedAt: data.updatedAt ?? new Date().toISOString() };
 }

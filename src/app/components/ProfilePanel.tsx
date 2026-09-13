@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEnscribeAuth } from "@/app/providers";
 import {
   loadInvoices,
   loadProfile,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/wallets";
 
 export function ProfilePanel() {
+  const { session, configured: privyConfigured } = useEnscribeAuth();
   const [profile, setProfile] = useState<FreelancerProfile>({
     displayName: "",
     solanaAddress: "",
@@ -28,8 +30,15 @@ export function ProfilePanel() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    setProfile(loadProfile());
-  }, []);
+    const local = loadProfile();
+    if (session?.address && !local.defaultRefundTo) {
+      const next = { ...local, defaultRefundTo: session.address };
+      saveProfile(next);
+      setProfile(next);
+      return;
+    }
+    setProfile(local);
+  }, [session?.address]);
 
   const persist = (next: FreelancerProfile) => {
     setProfile(next);
@@ -40,11 +49,18 @@ export function ProfilePanel() {
     setError(null);
     setMessage(null);
     try {
+      if (session?.address) {
+        persist({ ...profile, defaultRefundTo: session.address });
+        setMessage(
+          `Using Privy wallet: ${shorten(session.address)}${privyConfigured ? "" : ""}`,
+        );
+        return;
+      }
       const address = await connectMetaMask();
       persist({ ...profile, defaultRefundTo: address });
       setMessage(`MetaMask linked: ${shorten(address)}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "MetaMask connect failed");
+      setError(e instanceof Error ? e.message : "Wallet link failed");
     }
   };
 
@@ -113,9 +129,9 @@ export function ProfilePanel() {
         Register wallets
       </h1>
       <p className="mt-4 text-[var(--fg-muted)]">
-        Link MetaMask + Phantom locally, then sync an encrypted profile/ledger
-        to Swarm. Postage batch stays on the server — you only sign with
-        MetaMask to prove wallet ownership.
+        Link your Privy EVM wallet + Phantom locally, then sync an encrypted
+        profile/ledger to Swarm. Postage batch stays on the server. You sign
+        with your login wallet to prove ownership.
       </p>
 
       <div className="mt-8 space-y-4 border border-[var(--line)] bg-[var(--bg-panel)] p-6">
@@ -153,14 +169,17 @@ export function ProfilePanel() {
 
         <div className="space-y-2">
           <p className="text-sm text-[var(--fg-muted)]">
-            EVM identity / refund (MetaMask) — used as Swarm store key
+            EVM identity / refund {privyConfigured ? "(Privy)" : "(MetaMask)"} —
+            used as Swarm store key
           </p>
           <button
             type="button"
             onClick={() => void onMetaMask()}
             className="border border-[var(--line)] px-3 py-2 text-sm hover:border-[var(--ledger)]"
           >
-            Connect MetaMask
+            {session?.address
+              ? `Use login wallet · ${shorten(session.address)}`
+              : "Connect MetaMask"}
           </button>
           <input
             value={profile.defaultRefundTo}

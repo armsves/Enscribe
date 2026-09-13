@@ -169,6 +169,8 @@ export async function POST(request: Request) {
 
     const tokens = await listTokens();
     const originToken = tokens.find((t) => t.assetId === body.originAsset);
+    const originChain = originToken?.blockchain ?? "evm";
+    const originSymbol = originToken?.symbol ?? "TOKEN";
 
     const mint = await mintPaymentRequestSubdomain({
       label,
@@ -176,8 +178,8 @@ export async function POST(request: Request) {
         depositAddress: depositAddress as Address,
         amount: body.amount,
         amountFormatted: quote.quote.amountInFormatted,
-        originChain: originToken?.blockchain ?? "evm",
-        originSymbol: originToken?.symbol ?? "TOKEN",
+        originChain,
+        originSymbol,
         refundTo,
         createdAt,
         clientName: body.clientName.trim().slice(0, 80),
@@ -217,8 +219,6 @@ export async function POST(request: Request) {
     const absolutePayUrl = `${appOrigin(request)}${relativePayUrl}`;
     const amountFormatted =
       quote.quote.amountInFormatted ?? body.amount;
-    const originChain = originToken?.blockchain ?? "evm";
-    const originSymbol = originToken?.symbol ?? "TOKEN";
 
     const pdfBytes = await buildInvoicePdf({
       ens,
@@ -243,11 +243,19 @@ export async function POST(request: Request) {
     let swarmError: string | null = null;
     if (isSwarmConfigured()) {
       try {
-        swarm = await uploadEncryptedFile({
-          data: pdfBytes,
-          filename: `${invoiceNumber || ens}.pdf`,
-          contentType: "application/pdf",
-        });
+        swarm = await Promise.race([
+          uploadEncryptedFile({
+            data: pdfBytes,
+            filename: `${invoiceNumber || ens}.pdf`,
+            contentType: "application/pdf",
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(
+              () => reject(new Error("Swarm PDF upload timed out")),
+              12_000,
+            );
+          }),
+        ]);
       } catch (err) {
         swarmError =
           err instanceof Error ? err.message : "Swarm PDF upload failed";
@@ -279,12 +287,8 @@ export async function POST(request: Request) {
       note: "Solana settlement is confidential — only invoice metadata and deposit address are on ENS. Postage batch + Swarm refs stay server-side.",
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Invoice creation failed",
-      },
-      { status: 400 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Invoice creation failed";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

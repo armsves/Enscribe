@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { readApiJson } from "@/lib/api-json";
+import { useEnscribeAuth } from "@/app/providers";
 import {
   downloadPdfBase64,
   loadProfile,
@@ -40,6 +42,7 @@ const CHAIN_LABEL: Record<string, string> = {
 };
 
 export function CreateInvoiceForm() {
+  const { session } = useEnscribeAuth();
   const [clientName, setClientName] = useState("");
   const [description, setDescription] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -61,7 +64,7 @@ export function CreateInvoiceForm() {
     const profile = loadProfile();
     setFreelancerName(profile.displayName);
     setSolanaAddress(profile.solanaAddress);
-    setRefundTo(profile.defaultRefundTo);
+    setRefundTo(profile.defaultRefundTo || session?.address || "");
 
     void (async () => {
       const [cRes, tRes] = await Promise.all([
@@ -78,7 +81,13 @@ export function CreateInvoiceForm() {
         list[0];
       if (preferred) setOriginAsset(preferred.assetId);
     })();
-  }, []);
+  }, [session?.address]);
+
+  useEffect(() => {
+    if (session?.address && !refundTo.trim()) {
+      setRefundTo(session.address);
+    }
+  }, [session?.address, refundTo]);
 
   const selected = useMemo(
     () => tokens.find((t) => t.assetId === originAsset),
@@ -169,6 +178,10 @@ export function CreateInvoiceForm() {
         defaultRefundTo: refundTo.trim(),
       });
 
+      if (!amountBaseUnits || amountBaseUnits === "0") {
+        throw new Error("Enter a valid amount (Intents bridge needs ~0.3+ USDC)");
+      }
+
       const res = await fetch("/api/invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,7 +196,7 @@ export function CreateInvoiceForm() {
           ...(refundTo.trim() ? { refundTo: refundTo.trim() } : {}),
         }),
       });
-      const data = (await res.json()) as {
+      const data = await readApiJson<{
         id?: string;
         ens?: string;
         payUrl?: string;
@@ -202,7 +215,7 @@ export function CreateInvoiceForm() {
         swarmStored?: boolean;
         swarmError?: string | null;
         error?: string;
-      };
+      }>(res);
       if (!res.ok) throw new Error(data.error ?? "Invoice creation failed");
 
       const local: LocalInvoice = {
@@ -367,6 +380,10 @@ export function CreateInvoiceForm() {
             inputMode="decimal"
             className="mt-2 w-full border border-[var(--line)] bg-[#071018] px-3 py-3 text-[var(--fg)] outline-none focus:border-[var(--ledger)]"
           />
+          <span className="mt-1 block text-xs text-[var(--fg-muted)]">
+            Bridge minimum is about 0.3 USDC. Create can take about 30-60s while ENS
+            mints on Sepolia.
+          </span>
         </label>
 
         <div className="space-y-2">
